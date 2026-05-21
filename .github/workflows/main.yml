@@ -1,0 +1,13 @@
+name: Test K3s Runner
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  test-job:
+    runs-on: k3s-runner-set 
+    steps:
+      - name: Sprawdzenie środowiska
+        run: |
+          echo "Cześć z klastra k3s!"
+          uname -a
