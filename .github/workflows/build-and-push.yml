@@ -27,6 +27,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
         with:
           driver: kubernetes
+          bootstrap: true
 
       - name: Build and Push
         uses: docker/build-push-action@v6
