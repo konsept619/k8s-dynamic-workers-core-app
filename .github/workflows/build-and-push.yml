@@ -3,7 +3,7 @@ name: Build and Push to Local Registry
 on:
   push:
     branches:
-      - main # lub Twoja główna gałąź
+      - main 
     paths:
       - 'src/**'
       - 'Containerfile'
@@ -12,10 +12,9 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: self-hosted
+    runs-on: k3s-runner-set
     
     env:
-      # Pobieranie adresu rejestru z GitHub Secrets
       REGISTRY: ${{ secrets.LOCAL_REGISTRY_URL }}
       IMAGE_NAME: "etl-dynamic-workers-app"
       TAG: "test"
