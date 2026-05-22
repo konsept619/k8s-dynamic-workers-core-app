@@ -16,7 +16,8 @@ jobs:
     env:
       # Pobieranie adresu rejestru z GitHub Secrets
       REGISTRY: ${{ secrets.LOCAL_REGISTRY_URL }}
-      IMAGE_NAME: "moje-appka"
+      IMAGE_NAME: "etl-dynamic-workers-app"
+      TAG: "test"
 
     steps:
       - name: Checkout code
@@ -36,6 +37,6 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
