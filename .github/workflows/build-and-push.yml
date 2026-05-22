@@ -52,7 +52,7 @@ jobs:
       - name: Checkout GitOps Repository
         uses: actions/checkout@v4
         with:
-          repository: 'https://github.com/konsept619/k8s-dynamic-workers-gitops/'
+          repository: 'konsept619/k8s-dynamic-workers-gitops'
           token: ${{ secrets.GITOPS_TOKEN }}
           path: gitops-repo
 
