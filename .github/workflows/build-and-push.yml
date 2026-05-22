@@ -3,7 +3,7 @@ name: Build and Push to Local Registry
 on:
   push:
     branches:
-      - main 
+      - master
     paths:
       - 'src/**'
       - 'Containerfile'
@@ -13,6 +13,8 @@ on:
 jobs:
   build-and-push:
     runs-on: k3s-runner-set
+    outputs:
+      short_sha: ${{ steps.vars.outputs.short_sha }}
     
     env:
       REGISTRY: ${{ secrets.LOCAL_REGISTRY_URL }}
@@ -22,6 +24,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set outputs
+        id: vars
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Check SHA
+          run: echo "Generated tag: ${{ steps.vars.outputs.short_sha }}"
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
@@ -55,6 +64,7 @@ jobs:
           repository: 'konsept619/k8s-dynamic-workers-gitops'
           token: ${{ secrets.GITOPS_TOKEN }}
           path: gitops-repo
+          ref: master
 
       - name: Update Helm Tag in values.yaml via sed
         run: |
