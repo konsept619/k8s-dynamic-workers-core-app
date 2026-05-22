@@ -56,11 +56,6 @@ jobs:
           token: ${{ secrets.GITOPS_TOKEN }}
           path: gitops-repo
 
-      - name: Set up yq
-        uses: chrisdickinson/setup-yq@v2
-        with:
-          yq-version: 'v4.44.1'
-
       - name: Update Helm Tag in values.yaml via sed
         run: |
           cd gitops-repo
