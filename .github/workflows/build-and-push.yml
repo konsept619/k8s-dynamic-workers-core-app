@@ -56,11 +56,10 @@ jobs:
           token: ${{ secrets.GITOPS_TOKEN }}
           path: gitops-repo
 
-      - name: Install yq
-        run: |
-          if ! command -v yq &> /dev/null; then
-            wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq && chmod +x /usr/local/bin/yq
-          fi
+      - name: Set up yq
+        uses: chrisdickinson/setup-yq@v2
+        with:
+          yq-version: 'v4.44.1'
 
       - name: Update Helm Tag in values.yaml
         run: |
