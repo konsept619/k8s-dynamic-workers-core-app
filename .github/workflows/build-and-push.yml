@@ -8,6 +8,7 @@ on:
       - 'src/**'
       - 'Containerfile'
       - 'requirements.txt'
+  workflow_dispatch:
 
 jobs:
   build-and-push:
