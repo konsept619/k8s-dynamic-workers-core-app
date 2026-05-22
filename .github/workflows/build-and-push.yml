@@ -61,10 +61,10 @@ jobs:
         with:
           yq-version: 'v4.44.1'
 
-      - name: Update Helm Tag in values.yaml
+      - name: Update Helm Tag in values.yaml via sed
         run: |
           cd gitops-repo
-          yq -i '.image.tag = "${{ needs.build-and-push.outputs.short_sha }}"' Helm-Chart/values.yaml
+          sed -i 's/^\([[:space:]]*tag:\).*/\1 "${{ needs.build-and-push.outputs.short_sha }}"/' Helm-Chart/values.yaml
 
       - name: Commit and Push changes
         run: |
