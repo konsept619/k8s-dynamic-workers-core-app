@@ -39,3 +39,34 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  update-gitops:
+    needs: build-and-push
+    runs-on: k3s-runner-set
+    steps:
+      - name: Checkout GitOps Repository
+        uses: actions/checkout@v4
+        with:
+          repository: 'https://github.com/konsept619/k8s-dynamic-workers-gitops/'
+          token: ${{ secrets.GITOPS_TOKEN }}
+          path: gitops-repo
+
+      - name: Install yq
+        run: |
+          if ! command -v yq &> /dev/null; then
+            wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq && chmod +x /usr/local/bin/yq
+          fi
+
+      - name: Update Helm Tag in values.yaml
+        run: |
+          cd gitops-repo
+          yq -i '.image.tag = "${{ needs.build-and-push.outputs.short_sha }}"' Helm-Chart/values.yaml
+
+      - name: Commit and Push changes
+        run: |
+          cd gitops-repo
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Helm-Chart/values.yaml
+          git commit -m "Deploy: Nowy tag obrazu ${{ needs.build-and-push.outputs.short_sha }} [skip ci]"
+          git push origin main
