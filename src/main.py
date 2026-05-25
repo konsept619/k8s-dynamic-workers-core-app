@@ -18,7 +18,7 @@ def print_status():
         print(f"  {var}: {value}")
 
 def print_query():
-    etl_db_type = os.environ.get("DB_TYPE", "postgres").lower()
+    etl_db_type = os.environ.get("DB_TYPE", "mysql").lower()
 
     try:
         query_module = importlib.import_module(f"queries.{etl_db_type}")
