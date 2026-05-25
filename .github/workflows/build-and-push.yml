@@ -70,7 +70,7 @@ jobs:
           else
             JSON_MATRIX=$(IFS=,; echo "[${MODULES[*]}]")
             echo "matrix=$JSON_MATRIX" >> $GITHUB_OUTPUT
-        echo "Generated matrix: $JSON_MATRIX"
+            echo "Generated matrix: $JSON_MATRIX"
           fi
 
       - name: Set up Buildx
