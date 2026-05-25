@@ -24,14 +24,54 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
 
       - name: Set outputs
         id: vars
         run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Check SHA
+      - name: Detect Changed Modules
+        id: detect
         run: |
-          echo "Generated tag: ${{ steps.vars.outputs.short_sha }}"
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD || git show --name-only --pretty="" HEAD)
+          
+          GLOBAL_CHANGED=false
+          for file in $CHANGED_FILES; do
+            if [[ "$file" == "Containerfile" || "$file" == "requirements.txt" || "$file" == "src/main.py" ]]; then
+              GLOBAL_CHANGED=true
+              break
+            fi
+          done
+
+          MODULES=()
+          if [ "$GLOBAL_CHANGED" = "true" ]; then
+            echo "Change detected in global scope. Rebuilding all workers"
+            for file in src/queries/*.py; do
+              basename=$(basename "$file" .py)
+              if [[ "$basename" != "__init__" && -f "$file" ]]; then
+                MODULES+=("\"$basename\"")
+              fi
+            done
+          else
+            echo "Analising 'queries' directory"
+            for file in $CHANGED_FILES; do
+              if [[ "$file" == src/queries/*.py && "$file" != *"__init__.py"* ]]; then
+                if [ -f "$file" ]; then
+                  basename=$(basename "$file" .py)
+                  MODULES+=("\"$basename\"")
+                fi
+              fi
+            done
+          fi
+
+          if [ ${#MODULES[@]} -eq 0 ]; then
+            echo "matrix=[]" >> $GITHUB_OUTPUT
+          else
+            JSON_MATRIX=$(IFS=,; echo "[${MODULES[*]}]")
+            echo "matrix=$JSON_MATRIX" >> $GITHUB_OUTPUT
+        echo "Generated matrix: $JSON_MATRIX"
+          fi
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
@@ -58,7 +98,12 @@ jobs:
 
   update-gitops:
     needs: build-and-push
+    if: needs.build-and-push.outputs.matrix != '[]'
     runs-on: k3s-runner-set
+    strategy:
+      matrix:
+        worker_name: ${{ fromJson(needs.build-and-push.outputs.matrix) }}
+      fail-fast: false
     steps:
       - name: Checkout GitOps Repository
         uses: actions/checkout@v4
@@ -67,16 +112,21 @@ jobs:
           token: ${{ secrets.GITOPS_TOKEN }}
           path: gitops-repo
 
-      - name: Update Helm Tag in values.yaml via sed
+      - name: Update Target Helm Tag via sed
         run: |
           cd gitops-repo
-          sed -i 's/^\([[:space:]]*tag:\).*/\1 "${{ needs.build-and-push.outputs.short_sha }}"/' Helm-Chart/values.yaml
-
+          WORKER="${{ matrix.worker_name }}"
+          SHA="${{ needs.build-and-push.outputs.short_sha }}"
+          
+          echo "Updating tag in GitOps for worker: $WORKER with value: $SHA"
+          sed -i "/${WORKER}:/,/tag:/s/\(tag:\).*/\1 \"${SHA}\"/" Helm-Chart/values.yaml
       - name: Commit and Push changes
         run: |
           cd gitops-repo
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Helm-Chart/values.yaml
-          git commit -m "Deploy: Nowy tag obrazu ${{ needs.build-and-push.outputs.short_sha }} [skip ci]"
+          git commit -m "Deploy [${{ matrix.worker_name }}]: New tag ${{ needs.build-and-push.outputs.short_sha }} [skip ci]" || echo "No changes"
+
+          git pull --rebase origin master
           git push origin master
