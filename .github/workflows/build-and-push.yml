@@ -104,7 +104,7 @@ jobs:
     runs-on: k3s-runner-set
     strategy:
       matrix:
-        worker_name: ${{ fromJson(needs.build-and-push.outputs.matrix) }}
+        worker_name: ${{ fromJson(needs.build-and-push.outputs.matrix || '[]') }}
       fail-fast: false
     steps:
       - name: Checkout GitOps Repository
