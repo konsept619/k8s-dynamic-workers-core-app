@@ -35,9 +35,14 @@ jobs:
       - name: Detect Changed Modules
         id: detect
         run: |
-          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD || git show --name-only --pretty="" HEAD)
           
           GLOBAL_CHANGED=false
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "Forcing full rebuild due to manual workflow dispatch invocation."
+            GLOBAL_CHANGED=true
+          else
+          
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD || git show --name-only --pretty="" HEAD)
           for file in $CHANGED_FILES; do
             if [[ "$file" == "Containerfile" || "$file" == "requirements.txt" || "$file" == "src/main.py" ]]; then
               GLOBAL_CHANGED=true
