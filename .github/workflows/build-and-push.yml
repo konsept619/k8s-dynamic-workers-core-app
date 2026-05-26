@@ -51,7 +51,7 @@ jobs:
             for file in src/queries/*.py; do
               basename=$(basename "$file" .py)
               if [[ "$basename" != "__init__" && -f "$file" ]]; then
-                MODULES+=("\"$basename\"")
+                MODULES+=("$basename")
               fi
             done
           else
@@ -60,18 +60,18 @@ jobs:
               if [[ "$file" == src/queries/*.py && "$file" != *"__init__.py"* ]]; then
                 if [ -f "$file" ]; then
                   basename=$(basename "$file" .py)
-                  MODULES+=("\"$basename\"")
+                  MODULES+=("$basename")
                 fi
               fi
             done
           fi
 
           if [ ${#MODULES[@]} -eq 0 ]; then
-            echo "matrix=[]" >> $GITHUB_OUTPUT
+            echo "matrix=" >> $GITHUB_OUTPUT
           else
-            JSON_MATRIX=$(IFS=,; echo "[${MODULES[*]}]")
-            echo "matrix=$JSON_MATRIX" >> $GITHUB_OUTPUT
-            echo "Generated matrix: $JSON_MATRIX"
+            SPACE_SEPARATED_MODULES="${MODULES[*]}"
+            echo "matrix=$SPACE_SEPARATED_MODULES" >> $GITHUB_OUTPUT
+            echo "Generated modules list: $SPACE_SEPARATED_MODULES"
           fi
 
       - name: Set up Buildx
@@ -85,7 +85,7 @@ jobs:
               insecure = true
 
       - name: Build and Push
-        if: steps.detect.outputs.matrix != '[]' && steps.detect.outputs.matrix != ''
+        if: steps.detect.outputs.matrix != ''
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -100,12 +100,8 @@ jobs:
 
   update-gitops:
     needs: build-and-push
-    if: needs.build-and-push.outputs.matrix != '[]' && needs.build-and-push.outputs.matrix != ''
+    if: needs.build-and-push.outputs.matrix != ''
     runs-on: k3s-runner-set
-    strategy:
-      matrix:
-        worker_name: ${{ fromJson(needs.build-and-push.outputs.matrix) }}
-      fail-fast: false
     steps:
       - name: Checkout GitOps Repository
         uses: actions/checkout@v4
@@ -114,21 +110,23 @@ jobs:
           token: ${{ secrets.GITOPS_TOKEN }}
           path: gitops-repo
 
-      - name: Update Target Helm Tag via sed
+      - name: Update Target Helm Tags and Push
         run: |
           cd gitops-repo
-          WORKER="${{ matrix.worker_name }}"
-          SHA="${{ needs.build-and-push.outputs.short_sha }}"
           
-          echo "Updating tag in GitOps for worker: $WORKER with value: $SHA"
-          sed -i "-B" "/dbType: \"${WORKER}\"/!b; :a; /tag:/ {s/\(tag:\).*/\1 \"${SHA}\"/;b}; N; ba" Helm-Chart/values.yaml
-      - name: Commit and Push changes
-        run: |
-          cd gitops-repo
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          SHA="${{ needs.build-and-push.outputs.short_sha }}"
+          MODULES_LIST="${{ needs.build-and-push.outputs.matrix }}"
+          
+          for WORKER in $MODULES_LIST; do
+            echo "Updating tag in GitOps for worker: $WORKER with value: $SHA"
+            sed -i "-B" "/dbType: \"${WORKER}\"/!b; :a; /tag:/ {s/\(tag:\).*/\1 \"${SHA}\"/;b}; N; ba" Helm-Chart/values.yaml
+          done
+          
           git add Helm-Chart/values.yaml
-          git commit -m "Deploy [${{ matrix.worker_name }}]: New tag ${{ needs.build-and-push.outputs.short_sha }} [skip ci]" || echo "No changes"
-
+          git commit -m "Deploy [${MODULES_LIST}]: New tags to SHA ${SHA} [skip ci]" || echo "No changes to commit"
+          
           git pull --rebase origin master
           git push origin master
